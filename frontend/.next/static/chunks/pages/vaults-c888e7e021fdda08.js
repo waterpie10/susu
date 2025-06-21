@@ -1,0 +1,1 @@
+(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[271],{9094:function(n,u,t){(window.__NEXT_P=window.__NEXT_P||[]).push(["/vaults",function(){return t(6890)}])},6890:function(n,u,t){"use strict";t.r(u);var _=t(5893);t(7294),u.default=()=>(0,_.jsx)("h1",{children:"Vaults Page"})}},function(n){n.O(0,[888,774,179],function(){return n(n.s=9094)}),_N_E=n.O()}]);
