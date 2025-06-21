@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ArrowLeft, Link, DollarSign, LogOut, Clock, CheckCircle2, History } from "lucide-react"
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
+import { CircularProgressbarWithChildren, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
 import NotificationsDropdown from "./notifications-dropdown"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -156,21 +156,23 @@ export default function VaultDetails({
 
               <Card className="bg-white border-gray-200 shadow-md">
                 <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center md:space-x-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                     {/* Total Pot Section */}
-                    <div className="flex-1 mb-6 md:mb-0 text-center">
+                    <div className="text-center">
                       <h3 className="text-lg font-semibold text-forest-500 mb-4">Total Pot</h3>
                       <div className="w-48 h-48 mx-auto">
-                        <CircularProgressbar
+                        <CircularProgressbarWithChildren
                           value={percentage}
-                          text={`$${collectedPot} / $${targetPot}`}
                           styles={buildStyles({
-                            textColor: "#344E41",
                             pathColor: "#3A5A40",
                             trailColor: "#DAD7CD",
-                            textSize: "12px",
                           })}
-                        />
+                        >
+                          <div className="text-center text-[#344E41]">
+                            <div className="font-bold text-lg">{`$${collectedPot} / $${targetPot}`}</div>
+                            <div className="text-sm">USDC</div>
+                          </div>
+                        </CircularProgressbarWithChildren>
                       </div>
                       <div className="pt-4">
                         <p className="text-gray-600">
@@ -179,31 +181,55 @@ export default function VaultDetails({
                         </p>
                       </div>
                     </div>
-                    {/* Next Payout Section */}
-                    <div className="flex-1">
-                      {nextPayoutUser && (
-                        <div>
-                          <h3 className="text-lg font-semibold text-forest-500 mb-4 text-center md:text-left">
-                            Next Payout
-                          </h3>
-                          <div className="flex items-center space-x-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                            <Avatar className="w-12 h-12">
-                              <AvatarFallback className="bg-forest-500 text-white text-xl">
-                                {nextPayoutUser.name[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-bold text-lg text-gray-800">{nextPayoutUser.name}</div>
-                              <p className="text-gray-600">
-                                Payout on <span className="font-medium text-gray-800">{nextPayoutUser.payoutDate}</span>
-                              </p>
-                            </div>
+
+                    {/* Vault Info & Deposit Section */}
+                    <div className="flex flex-col justify-between">
+                      <Card className="bg-gray-50 p-4 h-full">
+                        <CardContent className="space-y-4 flex flex-col justify-between h-full">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Your Contribution:</span>
+                            <div className="font-bold text-forest-500">${vault.userContribution} USDC</div>
                           </div>
-                        </div>
-                      )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Payout Frequency:</span>
+                            <span className="font-medium text-gray-800">{vault.frequency}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Vault Contract Expiring:</span>
+                            <span className="font-medium text-gray-800">{lastPayoutDate}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Button className="w-full bg-forest-500 hover:bg-forest-600 text-white py-3 mt-4" onClick={onOpenDeposit}>
+                        <DollarSign className="w-5 h-5 mr-2" />
+                        Deposit Funds
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
+
+                {nextPayoutUser && (
+                  <>
+                    <CardHeader className="border-t">
+                      <CardTitle className="text-forest-500">Next Payout</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-forest-500 text-white text-xl">
+                            {nextPayoutUser.name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-bold text-lg text-gray-800">{nextPayoutUser.name}</div>
+                          <p className="text-gray-600">
+                            Payout on <span className="font-medium text-gray-800">{nextPayoutUser.payoutDate}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </>
+                )}
 
                 <CardHeader className="border-t">
                   <CardTitle className="text-forest-500">Group Members</CardTitle>
@@ -262,11 +288,6 @@ export default function VaultDetails({
                 </CardContent>
               </Card>
             </div>
-
-            <Button className="w-full bg-forest-500 hover:bg-forest-600 text-white py-3" onClick={onOpenDeposit}>
-              <DollarSign className="w-5 h-5 mr-2" />
-              Deposit Funds
-            </Button>
           </div>
 
           {/* Column 2: Activity Feed */}
