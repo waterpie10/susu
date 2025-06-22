@@ -36,6 +36,7 @@ export default function Home() {
   const [selectedVault, setSelectedVault] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDepositModal, setShowDepositModal] = useState(false)
+  const [depositInfo, setDepositInfo] = useState<{ vaultId: string, contributionAmount: ethers.BigNumberish } | null>(null);
   const [showNotifications, setShowNotifications] = useState(false)
   const [currency, setCurrency] = useState("USD")
   // Remove the initial mock data
@@ -91,9 +92,15 @@ export default function Home() {
     setDashboardKey(prevKey => prevKey + 1);
   }
 
-  const handleDeposit = (amount: number) => {
+  const handleOpenDepositModal = (vaultId: string, contributionAmount: ethers.BigNumberish) => {
+    setDepositInfo({ vaultId, contributionAmount });
+    setShowDepositModal(true);
+  }
+
+  const handleDeposit = () => {
     // This will be moved to VaultDetails
-    setShowDepositModal(false)
+    setShowDepositModal(false);
+    refreshDashboard();
   }
 
   if (!isConnected) {
@@ -133,7 +140,7 @@ export default function Home() {
           onNavigateToSettings={handleNavigateToSettings}
           onToggleNotifications={() => setShowNotifications(!showNotifications)}
           showNotifications={showNotifications}
-          onOpenDeposit={() => setShowDepositModal(true)}
+          onOpenDeposit={handleOpenDepositModal}
         />
       )}
       {currentPage === "settings" && (
@@ -153,7 +160,15 @@ export default function Home() {
           onConfirm={refreshDashboard} 
         />
       )}
-      {showDepositModal && <DepositModal onClose={() => setShowDepositModal(false)} onConfirm={handleDeposit} />}
+      {showDepositModal && depositInfo && (
+        <DepositModal 
+            signer={signer}
+            vaultId={depositInfo.vaultId}
+            contributionAmount={depositInfo.contributionAmount}
+            onClose={() => setShowDepositModal(false)} 
+            onConfirm={handleDeposit} 
+        />
+      )}
       {showNotifications && <NotificationsDropdown onClose={() => setShowNotifications(false)} />}
     </div>
   )

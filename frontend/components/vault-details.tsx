@@ -12,6 +12,9 @@ import "react-circular-progressbar/dist/styles.css"
 import NotificationsDropdown from "./notifications-dropdown"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import vaultAbi from "@/lib/abi/SikaVault.json"
+import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
+
+const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
 
 interface VaultDetailsProps {
   provider: ethers.BrowserProvider | null
@@ -23,7 +26,7 @@ interface VaultDetailsProps {
   onNavigateToSettings: () => void
   onToggleNotifications: () => void
   showNotifications: boolean
-  onOpenDeposit: () => void
+  onOpenDeposit: (vaultId: string, contributionAmount: ethers.BigNumberish) => void
 }
 
 interface MemberStatus {
@@ -31,6 +34,12 @@ interface MemberStatus {
   payoutDate: string; // This will be a formatted string
   status: 'Paid' | 'Current' | 'Queued';
   contributionStatus: 'Contributed' | 'Outstanding';
+}
+
+interface Activity {
+  text: string;
+  time: string; // Using a simple string for now
+  blockNumber: number;
 }
 
 export default function VaultDetails({
@@ -48,6 +57,9 @@ export default function VaultDetails({
   const [targetPot, setTargetPot] = useState(BigInt(0));
   const [userContribution, setUserContribution] = useState(BigInt(0));
   const [payoutFrequency, setPayoutFrequency] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [isActivityVisible, setIsActivityVisible] = useState(true);
   
   const fetchVaultDetails = async () => {
     if (!provider) return;
@@ -103,6 +115,58 @@ export default function VaultDetails({
       setUserContribution(fetchedContribution);
       setPayoutFrequency(payoutIntervalSeconds === 604800 ? "Weekly" : payoutIntervalSeconds === 2592000 ? "Monthly" : "Quarterly");
       
+      const lastPayoutTimestamp = firstPayoutTimestamp + ((membersCount - 1) * payoutIntervalSeconds);
+      const expiry = new Date(lastPayoutTimestamp * 1000);
+      setExpiryDate(expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+
+      // --- Fetch Events for Activity Feed ---
+      const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, provider);
+      const creationFilter = factory.filters.VaultCreated(vaultId);
+      const creationEvents = await factory.queryFilter(creationFilter, 0, 'latest');
+      
+      const depositEvents = await vaultContract.queryFilter('Deposit', 0, 'latest');
+      const payoutEvents = await vaultContract.queryFilter('PayoutExecuted', 0, 'latest');
+      
+      let allActivities: Activity[] = [];
+
+      if (creationEvents.length > 0) {
+        const block = await provider.getBlock(creationEvents[0].blockNumber);
+        if (block) {
+            allActivities.push({
+                text: "Vault created successfully.",
+                time: new Date(block.timestamp * 1000).toLocaleString(),
+                blockNumber: creationEvents[0].blockNumber
+            });
+        }
+      }
+
+      for (const event of depositEvents) {
+          const block = await provider.getBlock(event.blockNumber);
+          if (block) {
+              const args = (event as ethers.EventLog).args;
+              allActivities.push({
+                  text: `${args.member.slice(0,6)}... deposited ${ethers.formatUnits(args.amount, 18)} USDC.`,
+                  time: new Date(block.timestamp * 1000).toLocaleString(),
+                  blockNumber: event.blockNumber
+              });
+          }
+      }
+
+      for (const event of payoutEvents) {
+          const block = await provider.getBlock(event.blockNumber);
+          if (block) {
+              const args = (event as ethers.EventLog).args;
+              allActivities.push({
+                  text: `Payout of ${ethers.formatUnits(args.amount, 18)} USDC executed to ${args.recipient.slice(0,6)}...`,
+                  time: new Date(block.timestamp * 1000).toLocaleString(),
+                  blockNumber: event.blockNumber
+              });
+          }
+      }
+      
+      allActivities.sort((a, b) => b.blockNumber - a.blockNumber);
+      setActivities(allActivities);
+      
     } catch (error) {
       console.error("Failed to fetch vault details:", error);
     } finally {
@@ -139,11 +203,14 @@ export default function VaultDetails({
       </div>
 
       <div className="flex-1 p-8">
-        <div className="grid grid-cols-1 gap-8 h-full">
+        <div className={`grid ${isActivityVisible ? 'grid-cols-2' : 'grid-cols-1'} gap-8 h-full`}>
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">{vaultName}</h1>
+                <Button onClick={() => setIsActivityVisible(!isActivityVisible)} variant="outline" size="icon">
+                  <History className="w-5 h-5" />
+                </Button>
               </div>
               <Card className="bg-white border-gray-200 shadow-md">
                 <CardContent className="p-6">
@@ -165,9 +232,10 @@ export default function VaultDetails({
                         <CardContent className="space-y-4 flex flex-col justify-between h-full">
                           <div className="flex items-center justify-between"><span className="text-gray-600">Your Contribution:</span><div className="font-bold text-forest-500">{ethers.formatUnits(userContribution, 18)} USDC</div></div>
                           <div className="flex items-center justify-between"><span className="text-gray-600">Payout Frequency:</span><span className="font-medium text-gray-800">{payoutFrequency}</span></div>
+                          <div className="flex items-center justify-between"><span className="text-gray-600">Vault Contract Expiring:</span><span className="font-medium text-gray-800">{expiryDate}</span></div>
                         </CardContent>
                       </Card>
-                      <Button className="w-full bg-forest-500 hover:bg-forest-600 text-white py-3 mt-4" onClick={onOpenDeposit}><DollarSign className="w-5 h-5 mr-2" />Deposit Funds</Button>
+                      <Button className="w-full bg-forest-500 hover:bg-forest-600 text-white py-3 mt-4" onClick={() => onOpenDeposit(vaultId, userContribution)}><DollarSign className="w-5 h-5 mr-2" />Deposit Funds</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -214,6 +282,25 @@ export default function VaultDetails({
               </Card>
             </div>
           </div>
+          {isActivityVisible && (
+             <div>
+               <h2 className="text-2xl font-bold mb-6 text-gray-800">Recent Activity</h2>
+               <Card className="bg-white border-gray-200 h-[600px] shadow-md">
+                 <CardContent className="p-0">
+                   <ScrollArea className="h-full p-6">
+                     <div className="space-y-4">
+                       {activities.map((activity, index) => (
+                         <div key={index} className="border-l-2 border-forest-500 pl-4 pb-4">
+                           <div className="text-sm text-gray-700 mb-1">{activity.text}</div>
+                           <div className="text-xs text-gray-500">{activity.time}</div>
+                         </div>
+                       ))}
+                     </div>
+                   </ScrollArea>
+                 </CardContent>
+               </Card>
+             </div>
+           )}
         </div>
       </div>
     </div>

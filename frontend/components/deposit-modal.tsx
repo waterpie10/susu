@@ -1,67 +1,74 @@
 "use client"
 
 import { useState } from "react"
+import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { X, DollarSign } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
+import vaultAbi from "@/lib/abi/SikaVault.json"
+import erc20Abi from "@/lib/abi/MockERC20.json" // A generic ERC20 ABI is fine
+
+// This needs to be the address of the token the vault uses
+const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
 
 interface DepositModalProps {
+  signer: ethers.Signer | null
+  vaultId: string
+  contributionAmount: ethers.BigNumberish
   onClose: () => void
-  onConfirm: (amount: number) => void
+  onConfirm: () => void
 }
 
-export default function DepositModal({ onClose, onConfirm }: DepositModalProps) {
-  const [amount, setAmount] = useState("")
+export default function DepositModal({ signer, vaultId, contributionAmount, onClose, onConfirm }: DepositModalProps) {
+  const [isDepositing, setIsDepositing] = useState(false)
+  const [status, setStatus] = useState("idle")
 
-  const handleConfirm = () => {
-    const numAmount = Number.parseFloat(amount)
-    if (numAmount > 0) {
-      onConfirm(numAmount)
+  const handleDeposit = async () => {
+    if (!signer) {
+      alert("Wallet not connected");
+      return;
+    }
+    
+    setIsDepositing(true);
+    try {
+      const vaultContract = new ethers.Contract(vaultId, vaultAbi.abi, signer);
+      const tokenContract = new ethers.Contract(MOCK_TOKEN_ADDRESS, erc20Abi.abi, signer);
+
+      setStatus("Approving...");
+      const approveTx = await tokenContract.approve(vaultId, contributionAmount);
+      await approveTx.wait();
+
+      setStatus("Depositing...");
+      const depositTx = await vaultContract.deposit({ gasLimit: 500000 });
+      await depositTx.wait();
+
+      setStatus("Success!");
+      onConfirm();
+
+    } catch (error) {
+      console.error("Deposit failed:", error);
+      alert("Deposit failed. Check console for details.");
+      setStatus("Error");
+    } finally {
+      setIsDepositing(false);
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-white border-gray-200 text-gray-900 shadow-xl">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl font-bold">Deposit into Vault</CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-600 hover:text-gray-700">
-            <X className="w-5 h-5" />
-          </Button>
+      <Card className="w-full max-w-md bg-white">
+        <CardHeader>
+          <CardTitle>Deposit Funds</CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4"><X className="w-5 h-5" /></Button>
         </CardHeader>
-
-        <CardContent className="space-y-6">
-          <div>
-            <Label htmlFor="amount" className="text-gray-700">
-              Amount (USDC)
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter amount to deposit"
-              className="bg-white border-gray-200 text-gray-900 mt-2"
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className="flex space-x-3">
-            <Button
-              onClick={handleConfirm}
-              disabled={!amount || Number.parseFloat(amount) <= 0}
-              className="flex-1 bg-forest-500 hover:bg-forest-600 text-white"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Confirm Deposit
-            </Button>
-            <Button onClick={onClose} variant="outline" className="flex-1">
-              Cancel
-            </Button>
-          </div>
+        <CardContent className="space-y-4">
+          <p>You are about to deposit <span className="font-bold">{ethers.formatUnits(contributionAmount, 18)} USDC</span> into the vault.</p>
+          <p className="text-sm text-gray-500">This requires two transactions: one to approve the token transfer and one to deposit.</p>
+          
+          <Button onClick={handleDeposit} disabled={isDepositing} className="w-full">
+            {isDepositing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isDepositing ? status : `Confirm Deposit`}
+          </Button>
         </CardContent>
       </Card>
     </div>
