@@ -1,5 +1,4 @@
-# susu: Jenius DeFi Staking Optimizer
-
+# susu
 
 ## Overview
 
