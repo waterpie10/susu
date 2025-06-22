@@ -69,15 +69,21 @@ export default function VaultDetails({
       const [currentCycle, fetchedTotalPot, nextPayoutTime] = await vaultContract.getVaultState();
       const [, fetchedContribution, interval, membersCount, ] = await vaultContract.getVaultConfiguration();
       
-      const memberAddresses: string[] = [];
+      const memberPromises = [];
       for (let j = 0; j < membersCount; j++) {
-        memberAddresses.push(await vaultContract.members(j));
+        memberPromises.push(vaultContract.members(j));
       }
 
-      const payoutOrder: number[] = [];
+      const payoutOrderPromises = [];
       for (let j = 0; j < membersCount; j++) {
-        payoutOrder.push(Number(await vaultContract.payoutOrder(j)));
+        payoutOrderPromises.push(vaultContract.payoutOrder(j));
       }
+
+      const [memberAddresses, rawPayoutOrder] = await Promise.all([
+        Promise.all(memberPromises),
+        Promise.all(payoutOrderPromises)
+      ]);
+      const payoutOrder = rawPayoutOrder.map((o: any) => Number(o));
 
       const schedule: MemberStatus[] = [];
       const payoutIntervalSeconds = Number(interval);
@@ -87,10 +93,16 @@ export default function VaultDetails({
       // First, find the timestamp of the *first* payout to establish a baseline
       const firstPayoutTimestamp = currentPayoutTimestamp - (Number(currentCycle) * payoutIntervalSeconds);
 
+      const hasPaidPromises = payoutOrder.map((memberIndex: number) => {
+        const memberAddress = memberAddresses[memberIndex];
+        return vaultContract.hasMemberPaidForCycle(memberAddress, currentCycle);
+      });
+      const hasPaidStatus = await Promise.all(hasPaidPromises);
+
       for (let i = 0; i < membersCount; i++) {
         const memberIndex = payoutOrder[i];
         const memberAddress = memberAddresses[memberIndex];
-        const hasPaid = await vaultContract.hasMemberPaidForCycle(memberAddress, currentCycle);
+        const hasPaid = hasPaidStatus[i];
         const payoutDate = new Date((firstPayoutTimestamp + (i * payoutIntervalSeconds)) * 1000);
         
         let status: 'Paid' | 'Current' | 'Queued' = 'Queued';

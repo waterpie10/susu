@@ -15,6 +15,25 @@ import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
 const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
 
+// Helper function to shuffle an array (Fisher-Yates shuffle)
+const shuffleArray = (array: number[]) => {
+  let currentIndex = array.length,  randomIndex;
+
+  // While there remain elements to shuffle.
+  while (currentIndex != 0) {
+
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex], array[currentIndex]];
+  }
+
+  return array;
+}
+
 interface CreateVaultModalProps {
   provider: ethers.BrowserProvider | null;
   signer: ethers.Signer | null;
@@ -75,21 +94,25 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
       const contributionInSmallestUnit = ethers.parseUnits(formData.amount, 18);
       
       const frequencyMap: { [key: string]: number } = {
-        'weekly': 604800,
-        'monthly': 2592000,
-        'quarterly': 7776000
+        'weekly': 7,
+        'monthly': 30,
+        'quarterly': 90
       };
-      const payoutFrequencyInSeconds = frequencyMap[formData.frequency];
+      const payoutIntervalInDays = frequencyMap[formData.frequency];
+
+      // Create and shuffle the payout order
+      const payoutOrder = Array.from(Array(allMembers.length).keys());
+      shuffleArray(payoutOrder);
 
       // 3. Get the latest nonce to prevent stale nonce issues
       const nonce = await signer.getNonce("latest");
 
       // 4. Send the transaction
       const tx = await factory.createVault(
-        formData.name,
         allMembers,
+        payoutOrder,
         contributionInSmallestUnit,
-        payoutFrequencyInSeconds,
+        payoutIntervalInDays,
         MOCK_TOKEN_ADDRESS,
         { gasLimit: 2000000, nonce: nonce }
       );
