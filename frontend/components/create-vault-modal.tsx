@@ -49,18 +49,36 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
     setIsDeploying(true);
     
     try {
+      const signerAddress = await signer.getAddress();
+      const otherMembers = formData.addresses.split("\n").filter((addr) => addr.trim());
+
+      // --- Input Validation ---
+      for (const member of otherMembers) {
+        if (!ethers.isAddress(member)) {
+          alert(`Invalid Ethereum address detected: ${member}`);
+          setIsDeploying(false);
+          return;
+        }
+      }
+
+      const allMembers = [signerAddress, ...otherMembers];
+      const memberSet = new Set(allMembers.map(a => a.toLowerCase()));
+      if (memberSet.size !== allMembers.length) {
+          alert("Duplicate member addresses are not allowed.");
+          setIsDeploying(false);
+          return;
+      }
+      // --- End Validation ---
+
       const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, signer);
 
-      const members = [
-        await signer.getAddress(), 
-        ...formData.addresses.split("\n").filter((addr) => addr.trim())
-      ];
+      const members = allMembers;
       
       // For now, let's just use a simple sequential payout order.
       // A real implementation should allow shuffling or user definition.
       const payoutOrder = members.map((_, index) => index);
       
-      const contributionAmount = ethers.parseUnits(formData.amount, 6); // Assuming USDC (6 decimals)
+      const contributionAmount = ethers.parseUnits(formData.amount, 18); // CORRECTED: Our mock token has 18 decimals
       
       const frequencyMap: { [key: string]: number } = {
         'weekly': 7,
