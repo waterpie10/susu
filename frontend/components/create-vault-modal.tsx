@@ -111,8 +111,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
         allMembers,
         payoutOrder,
         contributionInSmallestUnit,
-        payoutIntervalInDays,
-        { gasLimit: 2000000, nonce: nonce }
+        payoutIntervalInDays
       );
 
       await tx.wait();

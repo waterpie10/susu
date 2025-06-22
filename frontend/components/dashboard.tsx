@@ -44,13 +44,8 @@ const currencySymbols = {
 }
 
 function convertCurrency(amount: number, toCurrency: string): string {
-  const converted = amount * currencyRates[toCurrency as keyof typeof currencyRates]
-  const symbol = currencySymbols[toCurrency as keyof typeof currencySymbols]
-
-  if (toCurrency === "NGN" || toCurrency === "KES") {
-    return `${symbol}${Math.round(converted).toLocaleString()}`
-  }
-  return `${symbol}${Math.round(converted)}`
+  // For MATIC, just format as MATIC
+  return `${ethers.formatUnits(BigInt(amount), 18)} MATIC`;
 }
 
 export default function Dashboard({
@@ -247,7 +242,7 @@ export default function Dashboard({
                         <span className="text-gray-600">Progress</span>
                         <div className="text-right">
                           <div className="text-forest-500 font-medium">
-                            {ethers.formatUnits(vault.collected, 18)} / {ethers.formatUnits(vault.target, 18)} USDC
+                            {ethers.formatUnits(vault.collected, 18)} / {ethers.formatUnits(vault.target, 18)} MATIC
                           </div>
                           {currency !== "USD" && (
                              <div className="text-xs text-gray-400">
