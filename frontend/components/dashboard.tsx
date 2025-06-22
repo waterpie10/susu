@@ -1,5 +1,7 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -8,9 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Home, Vault, Bell, Settings, Link, Clock, Users, LogOut, Plus } from "lucide-react"
 import type { Vault as VaultType } from "@/app/page"
 import NotificationsDropdown from "./notifications-dropdown"
+import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
+import vaultAbi from "@/lib/abi/SikaVault.json";
+
+const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
 
 interface DashboardProps {
-  vaults: VaultType[]
+  provider: ethers.BrowserProvider | null;
+  signer: ethers.Signer | null;
   currency: string
   onCurrencyChange: (currency: string) => void
   onVaultClick: (vaultId: string) => void
@@ -46,7 +53,8 @@ function convertCurrency(amount: number, toCurrency: string): string {
 }
 
 export default function Dashboard({
-  vaults,
+  provider,
+  signer,
   currency,
   onCurrencyChange,
   onVaultClick,
@@ -56,6 +64,56 @@ export default function Dashboard({
   onToggleNotifications,
   showNotifications,
 }: DashboardProps) {
+  const [vaults, setVaults] = useState<VaultType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVaults = async () => {
+      if (!provider) return;
+
+      setIsLoading(true);
+      try {
+        const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, provider);
+        const vaultCount = await factory.getDeployedVaultsCount();
+        
+        const vaultsData: VaultType[] = [];
+        for (let i = 0; i < vaultCount; i++) {
+          const vaultAddress = await factory.deployedVaults(i);
+          const vaultContract = new ethers.Contract(vaultAddress, vaultAbi.abi, provider);
+
+          const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
+          const [, contributionAmount, , membersCount, ] = await vaultContract.getVaultConfiguration();
+          
+          const memberAddresses: string[] = [];
+          for (let j = 0; j < membersCount; j++) {
+            const memberAddress = await vaultContract.members(j);
+            memberAddresses.push(memberAddress);
+          }
+
+          const daysLeft = Math.ceil((Number(nextPayoutTime) - Date.now() / 1000) / (24 * 60 * 60));
+          const target = BigInt(contributionAmount) * BigInt(membersCount);
+
+          vaultsData.push({
+            id: vaultAddress,
+            name: `Savings Vault #${i + 1}`, // Placeholder name
+            collected: totalPot,
+            target: target.toString(),
+            members: memberAddresses,
+            daysLeft: daysLeft > 0 ? daysLeft : 0,
+            status: "Collecting", // Placeholder status
+          });
+        }
+        setVaults(vaultsData);
+      } catch (error) {
+        console.error("Failed to fetch vaults:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVaults();
+  }, [provider]);
+
   return (
     <div className="min-h-screen bg-white text-gray-900 flex relative">
       {/* Sidebar */}
@@ -162,65 +220,64 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {vaults.map((vault) => (
-              <Card
-                key={vault.id}
-                className="bg-white border-gray-200 border-l-4 border-l-forest-500 cursor-pointer hover:bg-gray-50 transition-colors shadow-md hover:shadow-lg"
-                onClick={() => onVaultClick(vault.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-lg text-gray-800">{vault.name}</h3>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        vault.status === "Ready for Payout"
-                          ? "bg-green-500/20 text-green-600"
-                          : "bg-yellow-500/20 text-yellow-600"
-                      }`}
-                    >
-                      {vault.status}
-                    </span>
-                  </div>
+          {isLoading ? (
+            <p>Loading vaults...</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {vaults.map((vault) => (
+                <Card
+                  key={vault.id}
+                  className="bg-white border-gray-200 border-l-4 border-l-forest-500 cursor-pointer hover:bg-gray-50 transition-colors shadow-md hover:shadow-lg"
+                  onClick={() => onVaultClick(vault.id)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-lg text-gray-800">{vault.name}</h3>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-600`}
+                      >
+                        {vault.status}
+                      </span>
+                    </div>
 
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600">Progress</span>
-                      <div className="text-right">
-                        <div className="text-forest-500 font-medium">
-                          ${vault.collected} / ${vault.target}
-                        </div>
-                        {currency !== "USD" && (
-                          <div className="text-xs text-gray-400">
-                            ≈ {convertCurrency(vault.collected, currency)} / {convertCurrency(vault.target, currency)}
+                    <div className="mb-4">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600">Progress</span>
+                        <div className="text-right">
+                          <div className="text-forest-500 font-medium">
+                            {ethers.formatUnits(vault.collected, 6)} / {ethers.formatUnits(vault.target, 6)} USDC
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                    <Progress value={(vault.collected / vault.target) * 100} className="h-2 bg-gray-200" />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {vault.members.map((member, index) => (
-                        <Avatar key={index} className="w-8 h-8 border-2 border-white">
-                          <AvatarFallback className="bg-forest-500 text-white text-xs">{member}</AvatarFallback>
-                        </Avatar>
-                      ))}
-                      <div className="w-8 h-8 bg-gray-200 rounded-full border-2 border-white flex items-center justify-center">
-                        <Users className="w-4 h-4 text-gray-500" />
-                      </div>
+                      <Progress 
+                        value={
+                          Number(vault.target) > 0 
+                            ? (Number(ethers.formatUnits(vault.collected, 6)) / Number(ethers.formatUnits(vault.target, 6))) * 100 
+                            : 0
+                        } 
+                        className="h-2 bg-gray-200" 
+                      />
                     </div>
 
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      <span>Payout in {vault.daysLeft} days</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex -space-x-2">
+                        {vault.members.map((_, index) => (
+                          <Avatar key={index} className="w-8 h-8 border-2 border-white">
+                            <AvatarFallback className="bg-forest-500 text-white text-xs">{`M${index+1}`}</AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>Payout in {vault.daysLeft} days</span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

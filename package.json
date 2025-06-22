@@ -6,6 +6,15 @@
     "frontend"
   ],
   "scripts": {
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "start:backend": "node backend/src/index.js"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.3.0",
+    "axios": "^1.7.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.24.3"
   }
 }

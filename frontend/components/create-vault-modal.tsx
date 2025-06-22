@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,13 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { X, ArrowRight, ArrowLeft, Zap } from "lucide-react"
 
+import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
+
+const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
+const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
+
 interface CreateVaultModalProps {
+  provider: ethers.BrowserProvider | null;
+  signer: ethers.Signer | null;
   onClose: () => void
-  onConfirm: (vaultData: any) => void
+  onConfirm: () => void
 }
 
-export default function CreateVaultModal({ onClose, onConfirm }: CreateVaultModalProps) {
+export default function CreateVaultModal({ provider, signer, onClose, onConfirm }: CreateVaultModalProps) {
   const [step, setStep] = useState(1)
+  const [isDeploying, setIsDeploying] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     amount: "",
@@ -31,8 +40,54 @@ export default function CreateVaultModal({ onClose, onConfirm }: CreateVaultModa
     if (step > 1) setStep(step - 1)
   }
 
-  const handleDeploy = () => {
-    onConfirm(formData)
+  const handleDeploy = async () => {
+    if (!signer) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+
+    setIsDeploying(true);
+    
+    try {
+      const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, signer);
+
+      const members = [
+        await signer.getAddress(), 
+        ...formData.addresses.split("\n").filter((addr) => addr.trim())
+      ];
+      
+      // For now, let's just use a simple sequential payout order.
+      // A real implementation should allow shuffling or user definition.
+      const payoutOrder = members.map((_, index) => index);
+      
+      const contributionAmount = ethers.parseUnits(formData.amount, 6); // Assuming USDC (6 decimals)
+      
+      const frequencyMap: { [key: string]: number } = {
+        'weekly': 7,
+        'monthly': 30,
+        'quarterly': 90
+      };
+      const payoutIntervalDays = frequencyMap[formData.frequency];
+
+      const tx = await factory.createVault(
+        members,
+        payoutOrder,
+        contributionAmount,
+        payoutIntervalDays,
+        MOCK_TOKEN_ADDRESS 
+      );
+
+      console.log("Transaction sent:", tx.hash);
+      await tx.wait();
+      console.log("Transaction mined!");
+
+      onConfirm();
+    } catch (error) {
+      console.error("Failed to deploy vault:", error);
+      alert("Failed to deploy vault. Check console for details.");
+    } finally {
+      setIsDeploying(false);
+    }
   }
 
   return (
@@ -205,9 +260,19 @@ export default function CreateVaultModal({ onClose, onConfirm }: CreateVaultModa
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleDeploy} className="bg-gold-500 hover:bg-gold-600 text-white">
-                <Zap className="w-4 h-4 mr-2" />
-                Deploy Smart Vault
+              <Button 
+                onClick={handleDeploy} 
+                className="bg-gold-500 hover:bg-gold-600 text-white"
+                disabled={isDeploying}
+              >
+                {isDeploying ? (
+                  "Deploying..."
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Deploy Smart Vault
+                  </>
+                )}
               </Button>
             )}
           </div>
