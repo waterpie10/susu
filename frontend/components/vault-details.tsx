@@ -109,16 +109,17 @@ export default function VaultDetails({
       }
 
       setRotationSchedule(schedule);
+
+      if (schedule.length > 0) {
+        setExpiryDate(schedule[schedule.length - 1].payoutDate);
+      }
+
       setVaultName(`Savings Vault #${vaultId.slice(0, 6)}`);
       setTotalPot(fetchedTotalPot);
       setTargetPot(BigInt(fetchedContribution) * BigInt(membersCount));
       setUserContribution(fetchedContribution);
       setPayoutFrequency(payoutIntervalSeconds === 604800 ? "Weekly" : payoutIntervalSeconds === 2592000 ? "Monthly" : "Quarterly");
       
-      const lastPayoutTimestamp = firstPayoutTimestamp + ((membersCount - 1) * payoutIntervalSeconds);
-      const expiry = new Date(lastPayoutTimestamp * 1000);
-      setExpiryDate(expiry.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
-
       // --- Fetch Events for Activity Feed ---
       const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, provider);
       const creationFilter = factory.filters.VaultCreated(vaultId);

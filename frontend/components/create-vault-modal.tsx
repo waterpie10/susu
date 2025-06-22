@@ -49,10 +49,10 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
     setIsDeploying(true);
     
     try {
+      // 1. Get all member addresses and perform validation
       const signerAddress = await signer.getAddress();
-      const otherMembers = formData.addresses.split("\n").filter((addr) => addr.trim());
+      const otherMembers = formData.addresses.split("\n").filter((addr) => addr.trim() !== "");
 
-      // --- Input Validation ---
       for (const member of otherMembers) {
         if (!ethers.isAddress(member)) {
           alert(`Invalid Ethereum address detected: ${member}`);
@@ -68,39 +68,33 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
           setIsDeploying(false);
           return;
       }
-      // --- End Validation ---
 
+      // 2. Prepare parameters for the contract call
       const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, signer);
-
-      const members = allMembers;
       
-      // For now, let's just use a simple sequential payout order.
-      // A real implementation should allow shuffling or user definition.
-      const payoutOrder = members.map((_, index) => index);
-      
-      const contributionAmount = ethers.parseUnits(formData.amount, 18); // CORRECTED: Our mock token has 18 decimals
+      const contributionInSmallestUnit = ethers.parseUnits(formData.amount, 18);
       
       const frequencyMap: { [key: string]: number } = {
-        'weekly': 7,
-        'monthly': 30,
-        'quarterly': 90
+        'weekly': 604800,
+        'monthly': 2592000,
+        'quarterly': 7776000
       };
-      const payoutIntervalDays = frequencyMap[formData.frequency];
+      const payoutFrequencyInSeconds = frequencyMap[formData.frequency];
 
+      // 3. Get the latest nonce to prevent stale nonce issues
+      const nonce = await signer.getNonce("latest");
+
+      // 4. Send the transaction
       const tx = await factory.createVault(
-        members,
-        payoutOrder,
-        contributionAmount,
-        payoutIntervalDays,
+        formData.name,
+        allMembers,
+        contributionInSmallestUnit,
+        payoutFrequencyInSeconds,
         MOCK_TOKEN_ADDRESS,
-        {
-          gasLimit: 3000000 // Manually set a higher gas limit
-        }
+        { gasLimit: 2000000, nonce: nonce }
       );
 
-      console.log("Transaction sent:", tx.hash);
       await tx.wait();
-      console.log("Transaction mined!");
 
       onConfirm();
     } catch (error) {
