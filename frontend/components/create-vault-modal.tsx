@@ -92,7 +92,10 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
         payoutOrder,
         contributionAmount,
         payoutIntervalDays,
-        MOCK_TOKEN_ADDRESS 
+        MOCK_TOKEN_ADDRESS,
+        {
+          gasLimit: 3000000 // Manually set a higher gas limit
+        }
       );
 
       console.log("Transaction sent:", tx.hash);
