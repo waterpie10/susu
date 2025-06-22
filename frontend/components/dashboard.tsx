@@ -18,6 +18,7 @@ const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
 interface DashboardProps {
   provider: ethers.BrowserProvider | null;
   signer: ethers.Signer | null;
+  userAddress: string;
   currency: string
   onCurrencyChange: (currency: string) => void
   onVaultClick: (vaultId: string) => void
@@ -55,6 +56,7 @@ function convertCurrency(amount: number, toCurrency: string): string {
 export default function Dashboard({
   provider,
   signer,
+  userAddress,
   currency,
   onCurrencyChange,
   onVaultClick,
@@ -171,10 +173,10 @@ export default function Dashboard({
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center space-x-3 mb-3">
             <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-forest-500 text-white">U</AvatarFallback>
+              <AvatarFallback className="bg-forest-500 text-white">{userAddress ? userAddress.slice(0, 1) : "U"}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <div className="text-sm font-medium text-gray-700">0x1234...abcd</div>
+              <div className="text-sm font-medium text-gray-700">{userAddress ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : "Not Connected"}</div>
             </div>
           </div>
           <Button
@@ -245,17 +247,22 @@ export default function Dashboard({
                         <span className="text-gray-600">Progress</span>
                         <div className="text-right">
                           <div className="text-forest-500 font-medium">
-                            {ethers.formatUnits(vault.collected, 6)} / {ethers.formatUnits(vault.target, 6)} USDC
+                            {ethers.formatUnits(vault.collected, 18)} / {ethers.formatUnits(vault.target, 18)} USDC
                           </div>
+                          {currency !== "USD" && (
+                             <div className="text-xs text-gray-400">
+                               ≈ {convertCurrency(Number(ethers.formatUnits(vault.collected, 18)), currency)} / {convertCurrency(Number(ethers.formatUnits(vault.target, 18)), currency)}
+                             </div>
+                           )}
                         </div>
                       </div>
-                      <Progress 
+                      <Progress
                         value={
-                          Number(vault.target) > 0 
-                            ? (Number(ethers.formatUnits(vault.collected, 6)) / Number(ethers.formatUnits(vault.target, 6))) * 100 
+                          BigInt(vault.target) > 0
+                            ? Number((BigInt(vault.collected) * BigInt(100)) / BigInt(vault.target))
                             : 0
-                        } 
-                        className="h-2 bg-gray-200" 
+                        }
+                        className="h-2 bg-gray-200"
                       />
                     </div>
 

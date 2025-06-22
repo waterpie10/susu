@@ -22,12 +22,16 @@ export interface Vault {
   members: string[];
   daysLeft: number;
   status: string; // e.g., "Collecting", "Ready for Payout"
+  contributionAmount?: ethers.BigNumberish;
+  nextRecipient?: string;
 }
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false)
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [userAddress, setUserAddress] = useState<string>("");
+  const [dashboardKey, setDashboardKey] = useState(0); // Add key to force re-render
   const [currentPage, setCurrentPage] = useState<"dashboard" | "vault-details" | "settings">("dashboard")
   const [selectedVault, setSelectedVault] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -44,6 +48,7 @@ export default function Home() {
         const userSigner = await browserProvider.getSigner();
         setProvider(browserProvider);
         setSigner(userSigner);
+        setUserAddress(await userSigner.getAddress());
         setIsConnected(true)
       } catch (error) {
         console.error("Failed to connect wallet:", error);
@@ -57,6 +62,7 @@ export default function Home() {
     setIsConnected(false)
     setProvider(null);
     setSigner(null);
+    setUserAddress("");
     setCurrentPage("dashboard")
     setSelectedVault(null)
   }
@@ -77,10 +83,12 @@ export default function Home() {
 
   // The handleCreateVault logic will be moved inside CreateVaultModal
   // and will interact with the contract directly.
-  const handleCreateVault = () => {
+  const refreshDashboard = () => {
     // This function will now just close the modal.
     // The actual creation is handled within the component.
-    setShowCreateModal(false)
+    setShowCreateModal(false);
+    // Force a re-render of the dashboard to fetch new vaults
+    setDashboardKey(prevKey => prevKey + 1);
   }
 
   const handleDeposit = (amount: number) => {
@@ -100,8 +108,10 @@ export default function Home() {
     <div className={inter.className}>
       {currentPage === "dashboard" && (
         <Dashboard
+          key={dashboardKey} // Use key to force re-fetch
           provider={provider}
           signer={signer}
+          userAddress={userAddress}
           currency={currency}
           onCurrencyChange={setCurrency}
           onVaultClick={handleVaultClick}
@@ -114,6 +124,8 @@ export default function Home() {
       )}
       {currentPage === "vault-details" && selectedVault && (
         <VaultDetails
+          provider={provider}
+          signer={signer}
           vaultId={selectedVault}
           currency={currency}
           onBack={handleBackToDashboard}
@@ -138,7 +150,7 @@ export default function Home() {
           provider={provider}
           signer={signer}
           onClose={() => setShowCreateModal(false)} 
-          onConfirm={handleCreateVault} 
+          onConfirm={refreshDashboard} 
         />
       )}
       {showDepositModal && <DepositModal onClose={() => setShowDepositModal(false)} onConfirm={handleDeposit} />}
