@@ -12,8 +12,7 @@ import { X, ArrowRight, ArrowLeft, Zap } from "lucide-react"
 
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
-const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
+const SIKA_VAULT_FACTORY_ADDRESS = "0x3884EEa8Be142829C0c6415066e79ae130944d34";
 
 // Helper function to shuffle an array (Fisher-Yates shuffle)
 const shuffleArray = (array: number[]) => {
@@ -113,7 +112,6 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
         payoutOrder,
         contributionInSmallestUnit,
         payoutIntervalInDays,
-        MOCK_TOKEN_ADDRESS,
         { gasLimit: 2000000, nonce: nonce }
       );
 
@@ -176,7 +174,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
 
                 <div>
                   <Label htmlFor="amount" className="text-gray-700">
-                    Contribution Amount (USDC)
+                    Contribution Amount (MATIC)
                   </Label>
                   <Input
                     id="amount"
@@ -242,7 +240,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Contribution Amount:</span>
-                    <span className="font-medium text-gray-800">{formData.amount} USDC</span>
+                    <span className="font-medium text-gray-800">{formData.amount} MATIC</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payout Frequency:</span>

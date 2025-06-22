@@ -186,7 +186,7 @@ export default function VaultDetails({
                         <CircularProgressbarWithChildren value={percentage} styles={buildStyles({ pathColor: "#3A5A40", trailColor: "#DAD7CD" })}>
                           <div className="text-center text-[#344E41]">
                             <div className="font-bold text-lg">{`${ethers.formatUnits(totalPot, 18)} / ${ethers.formatUnits(targetPot, 18)}`}</div>
-                            <div className="text-sm">USDC</div>
+                            <div className="text-sm">MATIC</div>
                           </div>
                         </CircularProgressbarWithChildren>
                       </div>
@@ -195,7 +195,7 @@ export default function VaultDetails({
                     <div className="flex flex-col justify-between">
                       <Card className="bg-gray-50 p-4 h-full">
                         <CardContent className="space-y-4 flex flex-col justify-between h-full">
-                          <div className="flex items-center justify-between"><span className="text-gray-600">Your Contribution:</span><div className="font-bold text-forest-500">{ethers.formatUnits(userContribution, 18)} USDC</div></div>
+                          <div className="flex items-center justify-between"><span className="text-gray-600">Your Contribution:</span><div className="font-bold text-forest-500">{ethers.formatUnits(userContribution, 18)} MATIC</div></div>
                           <div className="flex items-center justify-between"><span className="text-gray-600">Payout Frequency:</span><span className="font-medium text-gray-800">{payoutFrequency}</span></div>
                           <div className="flex items-center justify-between"><span className="text-gray-600">Vault Contract Expiring:</span><span className="font-medium text-gray-800">{expiryDate}</span></div>
                         </CardContent>

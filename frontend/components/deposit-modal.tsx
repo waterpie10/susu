@@ -32,14 +32,9 @@ export default function DepositModal({ signer, vaultId, contributionAmount, onCl
     setIsDepositing(true);
     try {
       const vaultContract = new ethers.Contract(vaultId, vaultAbi.abi, signer);
-      const tokenContract = new ethers.Contract(MOCK_TOKEN_ADDRESS, erc20Abi.abi, signer);
-
-      setStatus("Approving...");
-      const approveTx = await tokenContract.approve(vaultId, contributionAmount);
-      await approveTx.wait();
 
       setStatus("Depositing...");
-      const depositTx = await vaultContract.deposit({ gasLimit: 500000 });
+      const depositTx = await vaultContract.deposit({ value: ethers.parseEther(ethers.formatUnits(contributionAmount, 18)), gasLimit: 500000 });
       await depositTx.wait();
 
       setStatus("Success!");
@@ -62,8 +57,8 @@ export default function DepositModal({ signer, vaultId, contributionAmount, onCl
           <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4"><X className="w-5 h-5" /></Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p>You are about to deposit <span className="font-bold">{ethers.formatUnits(contributionAmount, 18)} USDC</span> into the vault.</p>
-          <p className="text-sm text-gray-500">This requires two transactions: one to approve the token transfer and one to deposit.</p>
+          <p>You are about to deposit <span className="font-bold">{ethers.formatUnits(contributionAmount, 18)} MATIC</span> into the vault.</p>
+          <p className="text-sm text-gray-500">This requires one transaction to deposit.</p>
           
           <Button onClick={handleDeposit} disabled={isDepositing} className="w-full">
             {isDepositing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
