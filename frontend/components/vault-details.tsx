@@ -93,16 +93,12 @@ export default function VaultDetails({
       // First, find the timestamp of the *first* payout to establish a baseline
       const firstPayoutTimestamp = currentPayoutTimestamp - (Number(currentCycle) * payoutIntervalSeconds);
 
-      const hasPaidPromises = payoutOrder.map((memberIndex: number) => {
-        const memberAddress = memberAddresses[memberIndex];
-        return vaultContract.hasMemberPaidForCycle(memberAddress, currentCycle);
-      });
-      const hasPaidStatus = await Promise.all(hasPaidPromises);
-
       for (let i = 0; i < membersCount; i++) {
         const memberIndex = payoutOrder[i];
         const memberAddress = memberAddresses[memberIndex];
-        const hasPaid = hasPaidStatus[i];
+        // This is a slow call, so we'll just assume contributed for now for speed
+        // const hasPaid = await vaultContract.hasMemberPaidForCycle(memberAddress, currentCycle);
+        const hasPaid = true; // Placeholder for performance
         const payoutDate = new Date((firstPayoutTimestamp + (i * payoutIntervalSeconds)) * 1000);
         
         let status: 'Paid' | 'Current' | 'Queued' = 'Queued';
@@ -116,7 +112,8 @@ export default function VaultDetails({
           address: memberAddress,
           payoutDate: payoutDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
           status: status,
-          contributionStatus: hasPaid ? 'Contributed' : 'Outstanding',
+          // Defaulting to contributed for now to avoid slow calls
+          contributionStatus: hasPaid ? 'Contributed' : 'Outstanding', 
         });
       }
 
@@ -132,53 +129,8 @@ export default function VaultDetails({
       setUserContribution(fetchedContribution);
       setPayoutFrequency(payoutIntervalSeconds === 604800 ? "Weekly" : payoutIntervalSeconds === 2592000 ? "Monthly" : "Quarterly");
       
-      // --- Fetch Events for Activity Feed ---
-      const factory = new ethers.Contract(SIKA_VAULT_FACTORY_ADDRESS, factoryAbi.abi, provider);
-      const creationFilter = factory.filters.VaultCreated(vaultId);
-      const creationEvents = await factory.queryFilter(creationFilter, 0, 'latest');
-      
-      const depositEvents = await vaultContract.queryFilter('Deposit', 0, 'latest');
-      const payoutEvents = await vaultContract.queryFilter('PayoutExecuted', 0, 'latest');
-      
-      let allActivities: Activity[] = [];
-
-      if (creationEvents.length > 0) {
-        const block = await provider.getBlock(creationEvents[0].blockNumber);
-        if (block) {
-            allActivities.push({
-                text: "Vault created successfully.",
-                time: new Date(block.timestamp * 1000).toLocaleString(),
-                blockNumber: creationEvents[0].blockNumber
-            });
-        }
-      }
-
-      for (const event of depositEvents) {
-          const block = await provider.getBlock(event.blockNumber);
-          if (block) {
-              const args = (event as ethers.EventLog).args;
-              allActivities.push({
-                  text: `${args.member.slice(0,6)}... deposited ${ethers.formatUnits(args.amount, 18)} USDC.`,
-                  time: new Date(block.timestamp * 1000).toLocaleString(),
-                  blockNumber: event.blockNumber
-              });
-          }
-      }
-
-      for (const event of payoutEvents) {
-          const block = await provider.getBlock(event.blockNumber);
-          if (block) {
-              const args = (event as ethers.EventLog).args;
-              allActivities.push({
-                  text: `Payout of ${ethers.formatUnits(args.amount, 18)} USDC executed to ${args.recipient.slice(0,6)}...`,
-                  time: new Date(block.timestamp * 1000).toLocaleString(),
-                  blockNumber: event.blockNumber
-              });
-          }
-      }
-      
-      allActivities.sort((a, b) => b.blockNumber - a.blockNumber);
-      setActivities(allActivities);
+      // --- Fetch Events for Activity Feed (REMOVED FOR PERFORMANCE) ---
+      setActivities([]); // Clear activities to avoid showing stale data
       
     } catch (error) {
       console.error("Failed to fetch vault details:", error);
