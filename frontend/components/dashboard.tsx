@@ -85,6 +85,7 @@ export default function Dashboard({
 
           const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
           const [, contributionAmount, , membersCount, ] = await vaultContract.getVaultConfiguration();
+          const vaultName = await vaultContract.vaultName();
           
           const memberAddresses: string[] = [];
           for (let j = 0; j < membersCount; j++) {
@@ -97,7 +98,7 @@ export default function Dashboard({
 
           vaultsData.push({
             id: vaultAddress,
-            name: `Savings Vault #${i + 1}`, // Placeholder name
+            name: vaultName || `Savings Vault #${i + 1}`, // Use vault name from contract, fallback to default
             collected: totalPot,
             target: target.toString(),
             members: memberAddresses,
@@ -247,7 +248,7 @@ export default function Dashboard({
                         <span className="text-gray-600">Progress</span>
                         <div className="text-right">
                           <div className="text-forest-500 font-medium">
-                            {ethers.formatUnits(vault.collected, 18)} / {ethers.formatUnits(vault.target, 18)} USDC
+                            {ethers.formatUnits(vault.collected, 18)} / {ethers.formatUnits(vault.target, 18)} MTK
                           </div>
                           {currency !== "USD" && (
                              <div className="text-xs text-gray-400">

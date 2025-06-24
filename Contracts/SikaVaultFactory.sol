@@ -66,6 +66,7 @@ contract SikaVaultFactory is Ownable {
      * @param _contributionAmount The fixed amount each member must contribute per cycle.
      * @param _payoutIntervalDays The duration of each savings cycle in days.
      * @param _token The address of the ERC20 token to be used for contributions and payouts.
+     * @param _vaultName The name of the vault.
      * @return newVaultAddress The address of the newly deployed SikaVault contract.
      */
     function createVault(
@@ -73,7 +74,8 @@ contract SikaVaultFactory is Ownable {
         uint256[] calldata _payoutOrder,
         uint256 _contributionAmount,
         uint256 _payoutIntervalDays,
-        address _token
+        address _token,
+        string calldata _vaultName
     ) external returns (address) {
         // Input validation
         require(_members.length > 1, "SikaVault: Must have at least two members.");
@@ -81,13 +83,15 @@ contract SikaVaultFactory is Ownable {
         require(_contributionAmount > 0, "SikaVault: Contribution amount must be greater than zero.");
         require(_payoutIntervalDays > 0, "SikaVault: Payout interval must be greater than zero.");
         require(_token != address(0), "SikaVault: Token address cannot be zero.");
+        require(bytes(_vaultName).length > 0, "SikaVault: Vault name cannot be empty.");
 
         SikaVault newVault = new SikaVault(
             _members,
             _payoutOrder,
             _contributionAmount,
             _payoutIntervalDays,
-            _token
+            _token,
+            _vaultName
         );
 
         address newVaultAddress = address(newVault);

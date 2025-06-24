@@ -22,6 +22,7 @@ contract SikaVault is ISikaVault, ReentrancyGuard {
     uint256 public immutable contributionAmount;
     uint256 public immutable payoutInterval;
     uint256 public immutable membersCount;
+    string public vaultName;
     address[] public members;
     uint256[] public payoutOrder;
     mapping(address => bool) public isMember;
@@ -71,17 +72,20 @@ contract SikaVault is ISikaVault, ReentrancyGuard {
      * @param _contributionAmount The fixed amount each member must contribute per cycle.
      * @param _payoutIntervalDays The duration of each savings cycle in days.
      * @param _token The address of the ERC20 token for contributions and payouts.
+     * @param _vaultName The name of the vault.
      */
     constructor(
         address[] memory _members,
         uint256[] memory _payoutOrder,
         uint256 _contributionAmount,
         uint256 _payoutIntervalDays,
-        address _token
+        address _token,
+        string memory _vaultName
     ) {
         token = _token;
         contributionAmount = _contributionAmount;
         payoutInterval = _payoutIntervalDays * 1 days;
+        vaultName = _vaultName;
         members = _members;
         payoutOrder = _payoutOrder;
         membersCount = _members.length;

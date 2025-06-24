@@ -40,6 +40,10 @@ interface Activity {
   text: string;
   time: string; // Using a simple string for now
   blockNumber: number;
+  transactionHash?: string;
+  type: 'deposit' | 'payout' | 'emergency';
+  amount?: string;
+  user?: string;
 }
 
 export default function VaultDetails({
@@ -59,7 +63,8 @@ export default function VaultDetails({
   const [payoutFrequency, setPayoutFrequency] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [isActivityVisible, setIsActivityVisible] = useState(true);
+  const [isActivityVisible, setIsActivityVisible] = useState(false);
+  const [transactionHistory, setTransactionHistory] = useState<Activity[]>([]);
   
   const fetchVaultDetails = async () => {
     if (!provider) return;
@@ -132,10 +137,39 @@ export default function VaultDetails({
       // --- Fetch Events for Activity Feed (REMOVED FOR PERFORMANCE) ---
       setActivities([]); // Clear activities to avoid showing stale data
       
+      // Fetch transaction history
+      await fetchTransactionHistory();
+      
     } catch (error) {
       console.error("Failed to fetch vault details:", error);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  const fetchTransactionHistory = async () => {
+    if (!provider) return;
+    
+    try {
+      const vaultContract = new ethers.Contract(vaultId, vaultAbi.abi, provider);
+      
+      // Get recent deposit events
+      const depositFilter = vaultContract.filters.Deposit();
+      const depositEvents = await vaultContract.queryFilter(depositFilter, -10000, "latest");
+      
+      const history: Activity[] = depositEvents.map((event: any) => ({
+        text: `Deposit of ${ethers.formatUnits(event.args.amount, 18)} MTK`,
+        time: new Date().toLocaleString(),
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+        type: 'deposit',
+        amount: ethers.formatUnits(event.args.amount, 18),
+        user: event.args.member
+      }));
+      
+      setTransactionHistory(history.reverse()); // Show newest first
+    } catch (error) {
+      console.error("Failed to fetch transaction history:", error);
     }
   }
 
@@ -172,7 +206,18 @@ export default function VaultDetails({
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">{vaultName}</h1>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-800">{vaultName}</h1>
+                  <a 
+                    href={`https://amoy.polygonscan.com/address/${vaultId}`}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center mt-1"
+                  >
+                    <Link className="w-3 h-3 mr-1" />
+                    View Contract on Explorer
+                  </a>
+                </div>
                 <Button onClick={() => setIsActivityVisible(!isActivityVisible)} variant="outline" size="icon">
                   <History className="w-5 h-5" />
                 </Button>
@@ -186,7 +231,7 @@ export default function VaultDetails({
                         <CircularProgressbarWithChildren value={percentage} styles={buildStyles({ pathColor: "#3A5A40", trailColor: "#DAD7CD" })}>
                           <div className="text-center text-[#344E41]">
                             <div className="font-bold text-lg">{`${ethers.formatUnits(totalPot, 18)} / ${ethers.formatUnits(targetPot, 18)}`}</div>
-                            <div className="text-sm">USDC</div>
+                            <div className="text-sm">MTK</div>
                           </div>
                         </CircularProgressbarWithChildren>
                       </div>
@@ -195,7 +240,7 @@ export default function VaultDetails({
                     <div className="flex flex-col justify-between">
                       <Card className="bg-gray-50 p-4 h-full">
                         <CardContent className="space-y-4 flex flex-col justify-between h-full">
-                          <div className="flex items-center justify-between"><span className="text-gray-600">Your Contribution:</span><div className="font-bold text-forest-500">{ethers.formatUnits(userContribution, 18)} USDC</div></div>
+                          <div className="flex items-center justify-between"><span className="text-gray-600">Your Contribution:</span><div className="font-bold text-forest-500">{ethers.formatUnits(userContribution, 18)} MTK</div></div>
                           <div className="flex items-center justify-between"><span className="text-gray-600">Payout Frequency:</span><span className="font-medium text-gray-800">{payoutFrequency}</span></div>
                           <div className="flex items-center justify-between"><span className="text-gray-600">Vault Contract Expiring:</span><span className="font-medium text-gray-800">{expiryDate}</span></div>
                         </CardContent>
@@ -242,6 +287,45 @@ export default function VaultDetails({
                         </div>
                       </Card>
                     ))}
+                  </div>
+                </CardContent>
+                <CardHeader className="border-t"><CardTitle className="text-forest-500">Transaction History</CardTitle></CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-3">
+                    {transactionHistory.length > 0 ? (
+                      transactionHistory.map((tx, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <DollarSign className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-800">{tx.text}</div>
+                              <div className="text-sm text-gray-600">{tx.user ? `${tx.user.slice(0, 6)}...${tx.user.slice(-4)}` : 'Unknown'}</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium text-gray-800">{tx.amount} MTK</div>
+                            {tx.transactionHash && (
+                              <a 
+                                href={`https://amoy.polygonscan.com/tx/${tx.transactionHash}`}
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                              >
+                                <Link className="w-3 h-3 mr-1" />
+                                View on Explorer
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <History className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                        <p>No transactions yet</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

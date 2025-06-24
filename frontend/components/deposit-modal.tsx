@@ -35,19 +35,25 @@ export default function DepositModal({ signer, vaultId, contributionAmount, onCl
       const tokenContract = new ethers.Contract(MOCK_TOKEN_ADDRESS, erc20Abi.abi, signer);
 
       setStatus("Approving...");
-      const approveTx = await tokenContract.approve(vaultId, contributionAmount);
-      await approveTx.wait();
+      
+      // Check current allowance first
+      const currentAllowance = await tokenContract.allowance(await signer.getAddress(), vaultId);
+      if (currentAllowance < contributionAmount) {
+        const approveTx = await tokenContract.approve(vaultId, contributionAmount, { gasLimit: 100000 });
+        await approveTx.wait();
+      }
 
       setStatus("Depositing...");
-      const depositTx = await vaultContract.deposit({ gasLimit: 500000 });
-      await depositTx.wait();
-
+      const depositTx = await vaultContract.deposit({ gasLimit: 200000 });
+      const receipt = await depositTx.wait();
+      
       setStatus("Success!");
+      console.log("Deposit successful! Transaction hash:", receipt.hash);
       onConfirm();
 
     } catch (error) {
       console.error("Deposit failed:", error);
-      alert("Deposit failed. Check console for details.");
+      alert("Deposit failed: See console window for details");
       setStatus("Error");
     } finally {
       setIsDepositing(false);
@@ -62,7 +68,7 @@ export default function DepositModal({ signer, vaultId, contributionAmount, onCl
           <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-4 right-4"><X className="w-5 h-5" /></Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p>You are about to deposit <span className="font-bold">{ethers.formatUnits(contributionAmount, 18)} USDC</span> into the vault.</p>
+          <p>You are about to deposit <span className="font-bold">{ethers.formatUnits(contributionAmount, 18)} MTK</span> into the vault.</p>
           <p className="text-sm text-gray-500">This requires two transactions: one to approve the token transfer and one to deposit.</p>
           
           <Button onClick={handleDeposit} disabled={isDepositing} className="w-full">

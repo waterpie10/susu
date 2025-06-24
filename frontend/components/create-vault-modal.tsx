@@ -114,6 +114,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
         contributionInSmallestUnit,
         payoutIntervalInDays,
         MOCK_TOKEN_ADDRESS,
+        formData.name,
         { gasLimit: 2000000, nonce: nonce }
       );
 
@@ -176,7 +177,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
 
                 <div>
                   <Label htmlFor="amount" className="text-gray-700">
-                    Contribution Amount (USDC)
+                    Contribution Amount (MTK)
                   </Label>
                   <Input
                     id="amount"
@@ -242,7 +243,7 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Contribution Amount:</span>
-                    <span className="font-medium text-gray-800">{formData.amount} USDC</span>
+                    <span className="font-medium text-gray-800">{formData.amount} MTK</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Payout Frequency:</span>
