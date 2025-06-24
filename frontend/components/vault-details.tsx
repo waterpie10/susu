@@ -71,8 +71,17 @@ export default function VaultDetails({
     setIsLoading(true);
     try {
       const vaultContract = new ethers.Contract(vaultId, vaultAbi.abi, provider);
-      const [currentCycle, fetchedTotalPot, nextPayoutTime] = await vaultContract.getVaultState();
-      const [, fetchedContribution, interval, membersCount, ] = await vaultContract.getVaultConfiguration();
+      const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
+      const [, contributionAmount, payoutIntervalDays, membersCount, ] = await vaultContract.getVaultConfiguration();
+      
+      // Try to get vault name, fallback to default if function doesn't exist
+      let vaultName = "";
+      try {
+        vaultName = await vaultContract.vaultName();
+      } catch (error) {
+        // Old vaults don't have vaultName function, use default name
+        vaultName = "Savings Vault";
+      }
       
       const memberPromises = [];
       for (let j = 0; j < membersCount; j++) {
@@ -91,7 +100,7 @@ export default function VaultDetails({
       const payoutOrder = rawPayoutOrder.map((o: any) => Number(o));
 
       const schedule: MemberStatus[] = [];
-      const payoutIntervalSeconds = Number(interval);
+      const payoutIntervalSeconds = Number(payoutIntervalDays) * 86400;
       let currentPayoutTimestamp = Number(nextPayoutTime);
 
       // We need to reconstruct payout dates from the *next* payout time
@@ -128,11 +137,11 @@ export default function VaultDetails({
         setExpiryDate(schedule[schedule.length - 1].payoutDate);
       }
 
-      setVaultName(`Savings Vault #${vaultId.slice(0, 6)}`);
-      setTotalPot(fetchedTotalPot);
-      setTargetPot(BigInt(fetchedContribution) * BigInt(membersCount));
-      setUserContribution(fetchedContribution);
-      setPayoutFrequency(payoutIntervalSeconds === 604800 ? "Weekly" : payoutIntervalSeconds === 2592000 ? "Monthly" : "Quarterly");
+      setVaultName(vaultName);
+      setTotalPot(totalPot);
+      setTargetPot(BigInt(contributionAmount) * BigInt(membersCount));
+      setUserContribution(contributionAmount);
+      setPayoutFrequency(payoutIntervalDays === 7 ? "Weekly" : payoutIntervalDays === 30 ? "Monthly" : "Quarterly");
       
       // --- Fetch Events for Activity Feed (REMOVED FOR PERFORMANCE) ---
       setActivities([]); // Clear activities to avoid showing stale data

@@ -85,7 +85,15 @@ export default function Dashboard({
 
           const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
           const [, contributionAmount, , membersCount, ] = await vaultContract.getVaultConfiguration();
-          const vaultName = await vaultContract.vaultName();
+          
+          // Try to get vault name, fallback to default if function doesn't exist
+          let vaultName = "";
+          try {
+            vaultName = await vaultContract.vaultName();
+          } catch (error) {
+            // Old vaults don't have vaultName function, use default name
+            vaultName = `Savings Vault #${i + 1}`;
+          }
           
           const memberAddresses: string[] = [];
           for (let j = 0; j < membersCount; j++) {
@@ -98,7 +106,7 @@ export default function Dashboard({
 
           vaultsData.push({
             id: vaultAddress,
-            name: vaultName || `Savings Vault #${i + 1}`, // Use vault name from contract, fallback to default
+            name: vaultName,
             collected: totalPot,
             target: target.toString(),
             members: memberAddresses,
