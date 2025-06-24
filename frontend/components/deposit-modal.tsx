@@ -9,7 +9,7 @@ import vaultAbi from "@/lib/abi/SikaVault.json"
 import erc20Abi from "@/lib/abi/MockERC20.json" // A generic ERC20 ABI is fine
 
 // This needs to be the address of the token the vault uses
-const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
+const MOCK_TOKEN_ADDRESS = "0x47cDfC0798C2f406eFAA8f5671Bf69C9212Ae891";
 
 interface DepositModalProps {
   signer: ethers.Signer | null

@@ -31,7 +31,7 @@ contract SikaVault is ISikaVault, ReentrancyGuard {
     uint256 public currentCycle;
     uint256 public totalPot;
     uint256 public nextPayoutTime;
-    mapping(uint256 => mapping(address => bool)) public hasPaidForCycle;
+    mapping(uint256 => mapping(address => bool)) private _hasPaidForCycle;
     bool public isTerminated;
 
     // --- Emergency System ---
@@ -108,11 +108,11 @@ contract SikaVault is ISikaVault, ReentrancyGuard {
      */
     function deposit() external override onlyMember whenNotTerminated nonReentrant {
         require(
-            !hasPaidForCycle[currentCycle][msg.sender],
+            !_hasPaidForCycle[currentCycle][msg.sender],
             "SikaVault: Already paid for this cycle"
         );
 
-        hasPaidForCycle[currentCycle][msg.sender] = true;
+        _hasPaidForCycle[currentCycle][msg.sender] = true;
         totalPot += contributionAmount;
 
         // Pull the funds from the user's wallet to the vault
@@ -244,8 +244,8 @@ contract SikaVault is ISikaVault, ReentrancyGuard {
     /**
      * @inheritdoc ISikaVault
      */
-    function hasMemberPaidForCycle(address member, uint256 cycle) external view override returns (bool) {
-        return hasPaidForCycle[cycle][member];
+    function hasPaidForCycle(uint256 cycle, address member) external view override returns (bool) {
+        return _hasPaidForCycle[cycle][member];
     }
     
     // =============================================================

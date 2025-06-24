@@ -13,7 +13,7 @@ import NotificationsDropdown from "./notifications-dropdown"
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 import vaultAbi from "@/lib/abi/SikaVault.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
+const SIKA_VAULT_FACTORY_ADDRESS = "0x513a88f4179096bE8745cdC5e170d4e627d0DC43";
 
 interface DashboardProps {
   provider: ethers.BrowserProvider | null;

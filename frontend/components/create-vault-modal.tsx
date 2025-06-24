@@ -12,8 +12,8 @@ import { X, ArrowRight, ArrowLeft, Zap } from "lucide-react"
 
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0xaC1507f25385f6d52E4DcfA12e4a0136dCAA6D51";
-const MOCK_TOKEN_ADDRESS = "0x0823C9636d37D45B0D3E9b1BF17Bc32644ec0013";
+const SIKA_VAULT_FACTORY_ADDRESS = "0x513a88f4179096bE8745cdC5e170d4e627d0DC43";
+const MOCK_TOKEN_ADDRESS = "0x47cDfC0798C2f406eFAA8f5671Bf69C9212Ae891";
 
 // Helper function to shuffle an array (Fisher-Yates shuffle)
 const shuffleArray = (array: number[]) => {
