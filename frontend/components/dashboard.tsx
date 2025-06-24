@@ -13,7 +13,7 @@ import NotificationsDropdown from "./notifications-dropdown"
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 import vaultAbi from "@/lib/abi/SikaVault.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0x513a88f4179096bE8745cdC5e170d4e627d0DC43";
+const SIKA_VAULT_FACTORY_ADDRESS = "0xa61Cbb60B8f26D0Fce56B69B3490a599202Ea7e0";
 
 interface DashboardProps {
   provider: ethers.BrowserProvider | null;
@@ -71,7 +71,7 @@ export default function Dashboard({
 
   useEffect(() => {
     const fetchVaults = async () => {
-      if (!provider) return;
+      if (!provider || !userAddress) return;
 
       setIsLoading(true);
       try {
@@ -80,39 +80,50 @@ export default function Dashboard({
         
         const vaultsData: VaultType[] = [];
         for (let i = 0; i < vaultCount; i++) {
-          const vaultAddress = await factory.deployedVaults(i);
-          const vaultContract = new ethers.Contract(vaultAddress, vaultAbi.abi, provider);
-
-          const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
-          const [, contributionAmount, , membersCount, ] = await vaultContract.getVaultConfiguration();
-          
-          // Try to get vault name, fallback to default if function doesn't exist
-          let vaultName = "";
           try {
-            vaultName = await vaultContract.vaultName();
+            const vaultAddress = await factory.deployedVaults(i);
+            const vaultContract = new ethers.Contract(vaultAddress, vaultAbi.abi, provider);
+
+            // Check if the current user is a member of this vault
+            const isUserMember = await vaultContract.isMember(userAddress);
+            if (!isUserMember) {
+              continue; // Skip vaults where user is not a member
+            }
+
+            const [currentCycle, totalPot, nextPayoutTime] = await vaultContract.getVaultState();
+            const [, contributionAmount, , membersCount, ] = await vaultContract.getVaultConfiguration();
+            
+            // Try to get vault name, fallback to default if function doesn't exist
+            let vaultName = "";
+            try {
+              vaultName = await vaultContract.vaultName();
+            } catch (error) {
+              // Old vaults don't have vaultName function, use default name
+              vaultName = `Savings Vault #${i + 1}`;
+            }
+            
+            const memberAddresses: string[] = [];
+            for (let j = 0; j < membersCount; j++) {
+              const memberAddress = await vaultContract.members(j);
+              memberAddresses.push(memberAddress);
+            }
+
+            const daysLeft = Math.ceil((Number(nextPayoutTime) - Date.now() / 1000) / (24 * 60 * 60));
+            const target = BigInt(contributionAmount) * BigInt(membersCount);
+
+            vaultsData.push({
+              id: vaultAddress,
+              name: vaultName,
+              collected: totalPot,
+              target: target.toString(),
+              members: memberAddresses,
+              daysLeft: daysLeft > 0 ? daysLeft : 0,
+              status: "Collecting", // Placeholder status
+            });
           } catch (error) {
-            // Old vaults don't have vaultName function, use default name
-            vaultName = `Savings Vault #${i + 1}`;
+            console.error(`Error fetching vault ${i}:`, error);
+            // Continue with other vaults even if one fails
           }
-          
-          const memberAddresses: string[] = [];
-          for (let j = 0; j < membersCount; j++) {
-            const memberAddress = await vaultContract.members(j);
-            memberAddresses.push(memberAddress);
-          }
-
-          const daysLeft = Math.ceil((Number(nextPayoutTime) - Date.now() / 1000) / (24 * 60 * 60));
-          const target = BigInt(contributionAmount) * BigInt(membersCount);
-
-          vaultsData.push({
-            id: vaultAddress,
-            name: vaultName,
-            collected: totalPot,
-            target: target.toString(),
-            members: memberAddresses,
-            daysLeft: daysLeft > 0 ? daysLeft : 0,
-            status: "Collecting", // Placeholder status
-          });
         }
         setVaults(vaultsData);
       } catch (error) {
@@ -123,7 +134,7 @@ export default function Dashboard({
     };
 
     fetchVaults();
-  }, [provider]);
+  }, [provider, userAddress]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 flex relative">

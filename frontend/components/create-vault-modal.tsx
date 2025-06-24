@@ -12,8 +12,8 @@ import { X, ArrowRight, ArrowLeft, Zap } from "lucide-react"
 
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0x513a88f4179096bE8745cdC5e170d4e627d0DC43";
-const MOCK_TOKEN_ADDRESS = "0x47cDfC0798C2f406eFAA8f5671Bf69C9212Ae891";
+const SIKA_VAULT_FACTORY_ADDRESS = "0xa61Cbb60B8f26D0Fce56B69B3490a599202Ea7e0";
+const MOCK_TOKEN_ADDRESS = "0x9ecBaa3326b9d6D5e0101875BB0de8BA57FEa6fe";
 
 // Helper function to shuffle an array (Fisher-Yates shuffle)
 const shuffleArray = (array: number[]) => {
@@ -104,6 +104,15 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
       const payoutOrder = Array.from(Array(allMembers.length).keys());
       shuffleArray(payoutOrder);
 
+      console.log("Deployment parameters:", {
+        members: allMembers,
+        payoutOrder,
+        contributionAmount: contributionInSmallestUnit.toString(),
+        payoutIntervalInDays,
+        token: MOCK_TOKEN_ADDRESS,
+        vaultName: formData.name
+      });
+
       // 3. Get the latest nonce to prevent stale nonce issues
       const nonce = await signer.getNonce("latest");
 
@@ -115,15 +124,27 @@ export default function CreateVaultModal({ provider, signer, onClose, onConfirm 
         payoutIntervalInDays,
         MOCK_TOKEN_ADDRESS,
         formData.name,
-        { gasLimit: 2000000, nonce: nonce }
+        { gasLimit: 3000000, nonce: nonce }
       );
 
+      console.log("Transaction sent:", tx.hash);
       await tx.wait();
+      console.log("Transaction confirmed!");
 
       onConfirm();
     } catch (error) {
       console.error("Failed to deploy vault:", error);
-      alert("Failed to deploy vault. Check console for details.");
+      
+      // Provide more specific error messages
+      if (error.code === 'UNKNOWN_ERROR' && error.error?.code === -32603) {
+        alert("Deployment failed: Internal JSON-RPC error. This usually means there's an issue with the smart contract. Please check the console for more details.");
+      } else if (error.message?.includes('insufficient funds')) {
+        alert("Deployment failed: Insufficient funds for gas fees. Please ensure you have enough MATIC in your wallet.");
+      } else if (error.message?.includes('user rejected')) {
+        alert("Deployment cancelled: Transaction was rejected by the user.");
+      } else {
+        alert(`Failed to deploy vault: ${error.message || 'Unknown error occurred'}`);
+      }
     } finally {
       setIsDeploying(false);
     }

@@ -14,7 +14,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 import vaultAbi from "@/lib/abi/SikaVault.json"
 import factoryAbi from "@/lib/abi/SikaVaultFactory.json";
 
-const SIKA_VAULT_FACTORY_ADDRESS = "0x513a88f4179096bE8745cdC5e170d4e627d0DC43";
+const SIKA_VAULT_FACTORY_ADDRESS = "0xa61Cbb60B8f26D0Fce56B69B3490a599202Ea7e0";
 
 interface VaultDetailsProps {
   provider: ethers.BrowserProvider | null
